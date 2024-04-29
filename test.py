@@ -18,34 +18,28 @@ def decode_predictions(scores, geometry, scoreThresh):
         for x in range(0, geometry.shape[3]):
             score = scoresData[x]
 
-            # if score is lower than the threshold, ignore
             if score < scoreThresh:
                 continue
 
-            # calculate offset
             offsetX, offsetY = x * 4.0, y * 4.0
-
-            # calculate angle and the cosine and sine of angle
             angle = anglesData[x]
             cos = np.cos(angle)
             sin = np.sin(angle)
-
-            # calculate the width and height of the bounding box
             h = xData0[x] + xData2[x]
             w = xData1[x] + xData3[x]
+            p1 = offsetX + (cos * xData1[x]) + (sin * xData2[x])
+            p2 = offsetY - (sin * xData1[x]) + (cos * xData2[x])
 
-            # calculate starting and ending x coordinates for the text prediction bounding box
-            endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
-            endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
-            startX = int(endX - w)
-            startY = int(endY - h)
+            centerX = int(p1)
+            centerY = int(p2)
+            width = int(w)
+            height = int(h)
 
-            # add the bounding box coordinates and probability score to the list
-            detections.append((startX, startY, endX, endY))
-            confidences.append(score)
+            # Create a RotatedRect object
+            detections.append((centerX, centerY, width, height, angle))
+            confidences.append(float(score))
 
-    # return both the detection and confidence list
-    return [detections, confidences]
+    return detections, confidences
 
 def text_detector(image, net):
     orig = image.copy()
@@ -76,18 +70,20 @@ def text_detector(image, net):
     # decode the predictions, then apply non-maxima suppression to
     # suppress weak, overlapping bounding boxes
     [rects, confidences] = decode_predictions(scores, geometry, 0.5)
-    boxes = cv2.dnn.NMSBoxesRotated(rects, confidences, 0.5, 0.4)
 
-    # loop over the bounding boxes
-    for (startX, startY, endX, endY) in boxes:
-        # scale the bounding box coordinates based on the respective ratios
-        startX = int(startX * rW)
-        startY = int(startY * rH)
-        endX = int(endX * rW)
-        endY = int(endY * rH)
+    # Prepare for NMSBoxesRotated
+    confidences = np.array(confidences)
+    rects = np.array(rects, dtype="float32")
 
-        # draw the bounding box on the image
-        cv2.rectangle(orig, (startX, startY), (endX, endY), (0, 255, 0), 2)
+    # Apply non-maxima suppression
+    indices = cv2.dnn.NMSBoxesRotated(rects, confidences, 0.5, 0.4)
+
+    # Draw bounding boxes
+    for i in indices:
+        # vertices of the rotated rect
+        vertices = cv2.boxPoints(rects[i[0]])
+        vertices = np.int0(vertices)
+        cv2.polylines(orig, [vertices], isClosed=True, color=(0, 255, 0), thickness=2)
 
     return orig
 
@@ -95,23 +91,12 @@ def text_detector(image, net):
 net = cv2.dnn.readNet("frozen_east_text_detection.pb")
 
 # Load an image
-image0 = cv2.imread('image0.jpg')
-image1 = cv2.imread('image1.jpg')
-image2 = cv2.imread('image2.jpg')
-image3 = cv2.imread('image3.jpg')
-image4 = cv2.imread('image4.jpg')
-image5 = cv2.imread('image5.jpg')
-image6 = cv2.imread('image6.jpg')
-image7 = cv2.imread('image7.jpg')
-image8 = cv2.imread('image8.jpg')
-image9 = cv2.imread('image9.jpg')
-array = [image0,image1,image2,image3,image4,image5,image6,image7,image8,image9]
+image = cv2.imread('image5.jpg')
 
 # Detect text in the image
-for image in array:
-    text_detected = text_detector(image, net)
+text_detected = text_detector(image, net)
 
 # Display the image
-    cv2.imshow("Text Detection", text_detected)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+cv2.imshow("Text Detection", text_detected)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
