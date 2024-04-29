@@ -97,7 +97,12 @@ image1 = cv2.imread('image1.jpg')
 image2 = cv2.imread('image2.jpg')
 image3 = cv2.imread('image3.jpg')
 image4 = cv2.imread('image4.jpg')
-array = [image0,image1,image2,image3,image4]
+image5 = cv2.imread('image5.jpg')
+image6 = cv2.imread('image6.jpg')
+image7 = cv2.imread('image7.jpg')
+image8 = cv2.imread('image8.jpg')
+image9 = cv2.imread('image9.jpg')
+array = [image0,image1,image2,image3,image4,image5,image6,image7,image8,image9]
 
 for i in range(0,2):
 	for img in array:
