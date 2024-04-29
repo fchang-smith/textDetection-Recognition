@@ -30,33 +30,32 @@ def decode_predictions(scores, geometry, scoreThresh):
 def text_detector(image, net):
     orig = image.copy()
     (H, W) = image.shape[:2]
-
     (newW, newH) = (320, 320)
+    rW = W / float(newW)
+    rH = H / float(newH)
+
     image = cv2.resize(image, (newW, newH))
     (H, W) = image.shape[:2]
-
-    layerNames = [
-        "feature_fusion/Conv_7/Sigmoid",
-        "feature_fusion/concat_3"
-    ]
-
     blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
                                  (123.68, 116.78, 103.94), swapRB=True, crop=False)
     net.setInput(blob)
-    (scores, geometry) = net.forward(layerNames)
+    (scores, geometry) = net.forward(["feature_fusion/Conv_7/Sigmoid", "feature_fusion/concat_3"])
 
     [rects, confidences] = decode_predictions(scores, geometry, 0.5)
-    confidences = np.array(confidences)
-    rects = np.array(rects, dtype=np.float32)
+    rects = np.array(rects, dtype='float32')
+    confidences = np.array(confidences, dtype='float32')
 
-    indices = cv2.dnn.NMSBoxesRotated(rects, confidences, 0.5, 0.4)
-
-    for i in indices:
-        vertices = cv2.boxPoints(rects[i[0]])
-        vertices = np.int0(vertices)
-        cv2.polylines(orig, [vertices], isClosed=True, color=(0, 255, 0), thickness=2)
+    if len(rects) > 0 and len(confidences) > 0:
+        indices = cv2.dnn.NMSBoxesRotated(rects, confidences, 0.5, 0.4)
+        for i in indices:
+            vertices = cv2.boxPoints(rects[int(i[0])])
+            vertices = np.int0(vertices)
+            cv2.polylines(orig, [vertices], isClosed=True, color=(0, 255, 0), thickness=2)
+    else:
+        print("No bounding boxes to process.")
 
     return orig
+
 
 # Load the pre-trained EAST text detector
 net = cv2.dnn.readNet("frozen_east_text_detection.pb")
